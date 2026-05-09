@@ -1,5 +1,6 @@
 import sys, getopt
 import uuid
+from pathlib import Path
 
 
 args = sys.argv[1:]
@@ -8,6 +9,8 @@ long_options = ["help", "description="]
 
 folder_path = "./app_migrations_jobs/"
 file_extention = ".py"
+
+Path(folder_path).mkdir(parents=True, exist_ok=True)
 
 
 JOB_TEMPLATE = '''"""

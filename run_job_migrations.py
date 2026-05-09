@@ -2,8 +2,8 @@
 Run all app migration jobs (sequentially), then verify status in the DB.
 
 Usage:
-    uv run run_migrations.py            # run all pending jobs, then print verification
-    uv run run_migrations.py --verify   # only print verification (no execution)
+    uv run run_job_migrations.py            # run all pending jobs, then print verification
+    uv run run_job_migrations.py --verify   # only print verification (no execution)
 """
 
 import asyncio
@@ -11,7 +11,7 @@ import importlib.util
 import sys
 from pathlib import Path
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 
 from database.db_client import AsyncSessionLocal
 from database.models.migration_job import MigrationJob
