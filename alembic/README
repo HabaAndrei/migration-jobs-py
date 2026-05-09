@@ -1,0 +1,146 @@
+# SQLAlchemy + Alembic Migrations Guide (Async + Uvicorn)
+
+This guide shows how to set up **async SQLAlchemy** with Alembic, manage database migrations safely, and run your app with **Uvicorn**.
+
+---
+
+## 1. Install dependencies
+
+```bash
+pip install fastapi uvicorn sqlalchemy[asyncio] asyncpg alembic
+```
+
+---
+
+## 2. Create your SQLAlchemy models
+
+```python
+# app/models.py
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String, nullable=False, unique=True)
+    email = Column(String, nullable=False, unique=True)
+```
+
+---
+
+## 3. Set up the async database connection
+
+```python
+# app/database.py
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+
+ASYNC_DATABASE_URL = "postgresql+asyncpg://username:password@localhost:5432/mydatabase"
+
+engine = create_async_engine(ASYNC_DATABASE_URL, echo=True)
+AsyncSessionLocal = sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False
+)
+
+# Dependency for FastAPI
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        yield session
+```
+
+---
+
+## 4. Create a FastAPI app
+
+```python
+# app/main.py
+from fastapi import FastAPI, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.database import get_db
+from app.models import User
+
+app = FastAPI()
+
+@app.get("/")
+async def read_root():
+    return {"message": "Hello World"}
+
+@app.post("/users/")
+async def create_user(username: str, email: str, db: AsyncSession = Depends(get_db)):
+    new_user = User(username=username, email=email)
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    return new_user
+```
+
+---
+
+## 5. Initialize Alembic
+
+```bash
+alembic init alembic
+```
+
+* This creates the `alembic/` folder and `alembic.ini` file.
+* Edit `alembic/env.py` to import your `Base` metadata:
+
+```python
+from app.models import Base
+
+target_metadata = Base.metadata
+```
+
+Also, make sure to configure **async engine** in `env.py`:
+
+```python
+from sqlalchemy.ext.asyncio import create_async_engine
+
+db_url = "postgresql+asyncpg://username:password@localhost:5432/mydatabase"
+engine = create_async_engine(db_url, echo=True)
+```
+
+---
+
+## 6. Create and apply migrations
+
+```bash
+# Generate migration
+alembic revision --autogenerate -m "create users table"
+
+# Apply migration
+alembic upgrade head
+```
+
+---
+
+## 7. Run your FastAPI app with Uvicorn
+
+```bash
+uvicorn app.main:app --reload
+```
+
+* `--reload` automatically reloads your server on code changes.
+
+---
+
+## 8. Updating schema safely
+
+1. Change your model, e.g., add a `phone_number` column.
+2. Generate migration:
+
+```bash
+alembic revision --autogenerate -m "add phone_number column"
+```
+
+3. Apply migration:
+
+```bash
+alembic upgrade head
+```
+
+This keeps your existing data safe.
