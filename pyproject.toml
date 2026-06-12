@@ -1,7 +1,7 @@
 [project]
 name = "migration-jobs"
 version = "0.1.0"
-description = "Add your description here"
+description = "Run-once application jobs for Python + Postgres: generate a file per job, run them all on deploy, and a tracking table guarantees no job runs twice and failed jobs retry"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
