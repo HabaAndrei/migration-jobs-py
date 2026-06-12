@@ -30,7 +30,7 @@ Use it for one-off operational work that needs to happen exactly once across env
 .
 ├── alembic/                         # Schema migrations (incl. the migration_jobs table)
 ├── alembic.ini
-├── app_migrations_jobs/             # One file per job. Each is independently executable.
+├── app_migrations_jobs/             # One file per job (created on first generate). Each is independently executable.
 ├── database/
 │   ├── db_client.py                 # Async engine + AsyncSessionLocal
 │   └── models/
@@ -61,6 +61,10 @@ This table is the **source of truth** for "did this job run?". The `.py` file is
 ## Setup
 
 ```bash
+# 0. Clone the repository
+git clone https://github.com/HabaAndrei/migration-jobs-py.git
+cd migration-jobs-py
+
 # 1. Install dependencies
 uv sync
 
@@ -221,6 +225,19 @@ Each job file embeds its own UUID. On run, it:
 4. If row exists with `done=False` -> reuses it, retries.
 5. After running, updates `done`, `error_message`, `executed_at`, `execution_time_ms`. Commits.
 
+```mermaid
+flowchart TD
+    A["job file runs (JOB_ID baked in)"] --> B{"row in migration_jobs?"}
+    B -- "no" --> C["insert row"] --> E["run the function"]
+    B -- "yes, done = true" --> D["skip - already executed"]
+    B -- "yes, done = false" --> E
+    E --> F{"function raised?"}
+    F -- "no" --> G["done = true, clear error_message"]
+    F -- "yes" --> H["done = false, store error - retried on next run"]
+    G --> I["record executed_at + execution_time_ms, commit"]
+    H --> I
+```
+
 So:
 
 | State on disk + DB                 | What `run()` does                                  |
@@ -265,3 +282,9 @@ This framework is built for the typical "run as a one-off step on deploy" patter
   ```
 
   or delete the row entirely.
+
+---
+
+## License
+
+[MIT](LICENSE)
